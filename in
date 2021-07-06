@@ -1,0 +1,71 @@
+#!/bin/bash
+
+set -ueo pipefail
+
+exec 3>&1 # make stdout available as fd 3 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+destination=$1
+
+payload=$(cat <&0)
+
+version=$(jq --raw-output '.version.version // empty' <<< "${payload}")
+if [[ -z ${version} ]]; then
+    echo >&2 "Version info 'version' is missing"
+    exit 1
+fi
+
+source_system=$(jq -r '.source.system // empty' <<< "${payload}")
+if [[ -z ${source_system} ]]; then
+    echo >&2 "Source parameter 'system' is missing"
+    exit 1
+fi
+
+source_architecture=$(jq -r '.source.architecture // empty' <<< "${payload}")
+if [[ -z ${source_architecture} ]]; then
+    echo >&2 "Source parameter 'architecture' is missing"
+    exit 1
+fi
+
+source_distribution=$(jq -r '.source.distribution // empty' <<< "${payload}")
+if [[ -z ${source_distribution} ]]; then
+    echo >&2 "Source parameter 'distribution' is missing"
+    exit 1
+fi
+
+
+
+>&2 echo "Fetching assets in ${source_system} ${source_architecture} ${source_distribution} v${version}"
+
+pushd "${destination}" > /dev/null
+echo "${version}"       > version
+echo "${source_system}" > system
+echo "${source_architecture}" > architecture
+echo "${source_distribution}" > distribution
+
+tarball_url=$(
+    (
+        curl --silent --fail --show-error --location \
+                --url "https://www.mongodb.com/download-center/community/releases" \
+            | grep 'mongodb-${system}-${architecture}-${distribution}-${version}\.tgz'
+    ) | tail -n1
+)
+if [[ -z ${tarball_url} ]]; then
+    echo >&2 "No version ${version} for ${source_system} ${source_architecture} ${source_distribution} is available" \
+        "on 'https://www.mongodb.com/download-center/community/releases'"
+    exit 1
+fi
+
+echo >&2 "Downloading ${tarball_url}"
+curl  --silent --fail --show-error --location --remote-name \
+    --url "${tarball_url}"
+curl  --silent --fail --show-error --location --output "sha256" \
+    --url "${tarball_url}.sha256"
+sha256=$(< sha256)
+sha256sum --check <<< "${sha256} mongodb-${source_system}-${source_architecture}-${source_distribution}-${version}.tgz"
+
+
+jq --null-input \
+    --arg "version" "${version}" \
+    '{ version: { version: $version } }' \
+    >&3
