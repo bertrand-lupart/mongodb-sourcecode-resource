@@ -47,7 +47,10 @@ tarball_url=$(
     (
         curl --silent --fail --show-error --location \
                 --url "https://www.mongodb.com/download-center/community/releases" \
-            | grep 'mongodb-${system}-${architecture}-${distribution}-${version}\.tgz'
+            | tr '<' '\n' \
+            | sed -ne 's|^.*href="\([^"]*mongodb-[^"]*\.tgz\)">.*|\1|p' \
+            | grep "mongodb-${source_system}-${source_architecture}-${source_distribution}-${version}\.tgz"
+            #| grep "mongodb-linux-x86_64-ubuntu2004-4.4.6\.tgz"
     ) | tail -n1
 )
 if [[ -z ${tarball_url} ]]; then
