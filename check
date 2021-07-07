@@ -27,14 +27,27 @@ fi
 
 
 >&2 echo "Looking up versions of mongodb '${source_system}' '${source_architecture}' '${source_distribution}'"
+#latest_version=$(
+#   (
+#        curl --silent --fail --show-error --location \
+#                --url "https://www.mongodb.com/download-center/community/releases" \
+#            | tr '<' '\n'
+#            | sed -ne 's|^.*href="\([^"]*mongodb-[^"]*\.tgz\)">.*|\1|p' \
+#            | sed -ne "s/mongodb-${source_system}-${source_architecture}-${source_distribution}-\([0-9.]\{1,\}\)\.tgz/\1/p"
+#    ) | sort -V | tail -n1
+#)
+
 latest_version=$(
     (
         curl --silent --fail --show-error --location \
                 --url "https://www.mongodb.com/download-center/community/releases" \
-            | tr '<' '\n' | sed -ne 's|^.*href="\([^"]*mongodb-[^"]*\.tgz\)">.*|\1|p' \
-            | sed -ne "s/mongodb-${source_system}-${source_architecture}-${source_distribution}-\([0-9.]\{1,\}\)\.tgz/\1/p"
+            | tr '<' '\n' \
+            | sed -ne 's|^.*href="\([^"]*mongodb-[^"]*\.tgz\)">.*|\1|p' \
+            | sed -ne 's|.*mongodb-'"${source_system}-${source_architecture}-${source_distribution}"'-\([0-9.]\{1,\}\)\.tgz.*|\1|p'
     ) | sort -V | tail -n1
 )
+
+
 
 >&2 echo "Latest version ${latest_version}"
 
