@@ -8,7 +8,7 @@ exec 1>&2 # redirect all output to stderr for logging
 payload=$(cat <&0)
 
 source_system=$(jq -r '.source.system // empty' <<< "${payload}")
-if [[ -z ${system} ]]; then
+if [[ -z ${source_system} ]]; then
     echo >&2 "Source parameter 'system' is missing"
     exit 1
 fi
@@ -31,7 +31,8 @@ latest_version=$(
     (
         curl --silent --fail --show-error --location \
                 --url "https://www.mongodb.com/download-center/community/releases" \
-            | sed -ne 's/mongodb-${system}-${architecture}-${distribution}-\([0-9.]\{1,\}\)\.tgz/\1/p'
+            | tr '<' '\n' | sed -ne 's|^.*href="\([^"]*mongodb-[^"]*\.tgz\)">.*|\1|p' \
+            | sed -ne "s/mongodb-${source_system}-${source_architecture}-${source_distribution}-\([0-9.]\{1,\}\)\.tgz/\1/p"
     ) | sort -V | tail -n1
 )
 
